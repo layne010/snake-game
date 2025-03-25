@@ -118,18 +118,15 @@
     <button class="feedback-toggle">💬</button>
     <div class="feedback-container">
         <form 
-  class="feedback-form" 
-  id="feedbackForm" 
-  action="https://formsubmit.co/512281371@qq.com" 
+  action="https://api.web3forms.com/submit"
   method="POST"
   enctype="multipart/form-data"
-  onsubmit="return handleSubmit(event)"
-  >
-  <!-- ↓↓↓ 添加在这里 ↓↓↓ -->
+>
+  <input type="hidden" name="access_key" value="42f0c9fe-4dce-4ff2-9d54-fd4384369d9f">
   <input type="hidden" name="_template" value="basic">
-  <input type="hidden" name="_next" value="https://layne010.github.io/snake-game">
-  <input type="hidden" name="_captcha" value="false">
-  <input type="hidden" name="_subject" value="来自Deepgame的用户反馈">
+  <input type="hidden" name="_subject" value="Deepgame反馈">
+  <!-- 其他字段保持不变 -->
+</form>
       
   <input type="text" name="name" placeholder="昵称（可选）">
   <input type="email" name="email" placeholder="邮箱（可选）">
