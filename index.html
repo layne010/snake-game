@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     <title>Deepgame贪吃蛇</title>
     <style>
         body {
@@ -435,7 +436,7 @@
     body: new FormData(form),
     headers: {
       'Accept': 'application/json',
-      'Referrer-Policy': 'no-referrer' // 修复跨域问题
+      'Content-Type': 'multipart/form-data' // 
     }
   })
   .then(() => {
