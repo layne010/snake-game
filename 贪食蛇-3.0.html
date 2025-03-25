@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Deepgame贪吃蛇</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: #2c3e50;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 3px solid #34495e;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        .panel {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            color: white;
+            padding: 20px;
+            position: relative;
+        }
+        .brand {
+            color: rgba(255,255,255,0.8);
+            font-size: 24px;
+            font-family: 'Arial Black', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        #controlBtn {
+            padding: 12px 25px;
+            font-size: 18px;
+            background: #e67e22;
+            border: none;
+            border-radius: 25px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #controlBtn:hover {
+            background: #d35400;
+            transform: scale(1.1);
+        }
+        .feedback-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(44, 62, 80, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
+            transform: translateX(110%);
+            transition: transform 0.3s;
+            z-index: 100;
+        }
+        .feedback-container.active {
+            transform: translateX(0);
+        }
+        .feedback-toggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #e67e22;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .feedback-form input,
+        .feedback-form textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #34495e;
+            border-radius: 4px;
+            color: white;
+        }
+        .feedback-form button {
+            background: #27ae60;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .status-message {
+            color: #2ecc71;
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="panel">
+        <div class="brand">Deepgame</div>
+        <div id="score">得分: 0</div>
+        <button id="controlBtn">开始游戏</button>
+    </div>
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+
+    <!-- 反馈表单 -->
+    <button class="feedback-toggle">💬</button>
+    <div class="feedback-container">
+        <form class="feedback-form" id="feedbackForm">
+            <input type="text" name="name" placeholder="昵称（可选）">
+            <input type="email" name="email" placeholder="邮箱（可选）">
+            <textarea name="message" rows="4" placeholder="您的宝贵建议..." required></textarea>
+            <button type="submit">发送反馈</button>
+            <div class="status-message" id="statusMessage">反馈已发送，感谢！</div>
+        </form>
+    </div>
+
+    <script>
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.scoreElement = document.getElementById('score');
+                this.controlBtn = document.getElementById('controlBtn');
+                
+                this.gridSize = 20;
+                this.baseSpeed = 150;
+                this.tileCount = this.canvas.width / this.gridSize;
+                this.tileCountY = this.canvas.height / this.gridSize;
+
+                this.init();
+            }
+
+            init() {
+                this.isPlaying = false;
+                this.isGameOver = true;
+                this.reset();
+                this.setupControls();
+                this.draw();
+            }
+
+            reset() {
+                this.snake = [{ x: 10, y: 10 }];
+                this.direction = { dx: 1, dy: 0 };
+                this.score = 0;
+                this.speed = this.baseSpeed;
+                this.generateFood();
+                clearInterval(this.interval);
+            }
+
+            start() {
+                if (!this.isPlaying) {
+                    this.isPlaying = true;
+                    this.isGameOver = false;
+                    this.controlBtn.textContent = '重新开始';
+                    this.interval = setInterval(() => this.update(), this.speed);
+                }
+            }
+
+            setupControls() {
+                this.controlBtn.addEventListener('click', () => {
+                    if (!this.isPlaying || this.isGameOver) {
+                        this.reset();
+                        this.start();
+                    }
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (!this.isPlaying || this.isGameOver) return;
+                    
+                    const keyActions = {
+                        'ArrowUp': () => this.direction.dy !== 1 && this.setDirection(0, -1),
+                        'ArrowDown': () => this.direction.dy !== -1 && this.setDirection(0, 1),
+                        'ArrowLeft': () => this.direction.dx !== 1 && this.setDirection(-1, 0),
+                        'ArrowRight': () => this.direction.dx !== -1 && this.setDirection(1, 0)
+                    };
+                    
+                    if(keyActions[e.key]) {
+                        e.preventDefault();
+                        keyActions[e.key]();
+                    }
+                });
+            }
+
+            setDirection(dx, dy) {
+                this.direction = { dx, dy };
+            }
+
+            generateFood() {
+                do {
+                    this.food = {
+                        x: Math.floor(Math.random() * this.tileCount),
+                        y: Math.floor(Math.random() * this.tileCountY),
+                        color: `hsl(${Math.random() * 360}, 70%, 60%)`
+                    };
+                } while (this.snake.some(segment => 
+                    segment.x === this.food.x && 
+                    segment.y === this.food.y
+                ));
+            }
+
+            update() {
+                if (!this.isPlaying || this.isGameOver) return;
+
+                const head = {
+                    x: this.snake[0].x + this.direction.dx,
+                    y: this.snake[0].y + this.direction.dy
+                };
+
+                if (this.checkCollision(head)) {
+                    this.gameOver();
+                    return;
+                }
+
+                this.snake.unshift(head);
+
+                if(head.x === this.food.x && head.y === this.food.y) {
+                    this.score++;
+                    this.speed = Math.max(50, this.baseSpeed - this.score * 3);
+                    this.generateFood();
+                    clearInterval(this.interval);
+                    this.interval = setInterval(() => this.update(), this.speed);
+                } else {
+                    this.snake.pop();
+                }
+
+                this.draw();
+            }
+
+            checkCollision(head) {
+                return head.x < 0 || head.x >= this.tileCount ||
+                       head.y < 0 || head.y >= this.tileCountY ||
+                       this.snake.some((segment, index) => 
+                           index > 0 && 
+                           segment.x === head.x && 
+                           segment.y === head.y
+                       );
+            }
+
+            draw() {
+                this.ctx.fillStyle = '#2ecc71';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                if (!this.isPlaying) {
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = '36px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('点击开始游戏', this.canvas.width/2, this.canvas.height/2);
+                    return;
+                }
+
+                // 绘制蛇身
+                this.snake.forEach((segment, index) => {
+                    const brightness = 30 - (index / this.snake.length * 25);
+                    this.ctx.fillStyle = `hsl(0, 0%, ${brightness}%)`;
+                    
+                    if(index === 0) this.drawHead(segment);
+                    else if(index === this.snake.length - 1) this.drawTail(segment, this.snake[index-1]);
+                    else this.drawBody(segment, this.snake[index-1], this.snake[index+1]);
+                });
+
+                // 绘制食物
+                this.ctx.fillStyle = this.food.color;
+                this.ctx.beginPath();
+                this.ctx.arc(
+                    this.food.x * this.gridSize + this.gridSize/2,
+                    this.food.y * this.gridSize + this.gridSize/2,
+                    this.gridSize/2 - 2,
+                    0,
+                    Math.PI * 2
+                );
+                this.ctx.fill();
+
+                this.scoreElement.textContent = `得分: ${this.score}`;
+            }
+
+            drawHead(segment) {
+                const centerX = segment.x * this.gridSize + this.gridSize/2;
+                const centerY = segment.y * this.gridSize + this.gridSize/2;
+                const radius = this.gridSize/2 - 2;
+
+                this.ctx.beginPath();
+                this.ctx.arc(centerX, centerY, radius * 1.2, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // 绘制眼睛
+                const angle = Math.atan2(this.direction.dy, this.direction.dx);
+                const offset = this.gridSize * 0.4;
+                [
+                    {
+                        x: centerX + Math.cos(angle) * offset - Math.sin(angle) * offset/2,
+                        y: centerY + Math.sin(angle) * offset + Math.cos(angle) * offset/2
+                    },
+                    {
+                        x: centerX + Math.cos(angle) * offset + Math.sin(angle) * offset/2,
+                        y: centerY + Math.sin(angle) * offset - Math.cos(angle) * offset/2
+                    }
+                ].forEach(pos => {
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.beginPath();
+                    this.ctx.arc(pos.x, pos.y, radius * 0.3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                });
+            }
+
+            drawBody(segment, prevSeg, nextSeg) {
+                const current = {
+                    x: segment.x * this.gridSize + this.gridSize/2,
+                    y: segment.y * this.gridSize + this.gridSize/2
+                };
+                const prev = {
+                    x: prevSeg.x * this.gridSize + this.gridSize/2,
+                    y: prevSeg.y * this.gridSize + this.gridSize/2
+                };
+                const next = nextSeg ? {
+                    x: nextSeg.x * this.gridSize + this.gridSize/2,
+                    y: nextSeg.y * this.gridSize + this.gridSize/2
+                } : null;
+
+                const angleIn = Math.atan2(current.y - prev.y, current.x - prev.x);
+                const angleOut = next ? Math.atan2(next.y - current.y, next.x - current.x) : angleIn;
+
+                this.ctx.beginPath();
+                this.ctx.arc(
+                    current.x, current.y,
+                    this.gridSize/2 - 2,
+                    angleIn - Math.PI/2,
+                    angleOut + Math.PI/2
+                );
+                this.ctx.lineTo(
+                    current.x + Math.cos(angleOut + Math.PI/2) * (this.gridSize/2 - 2),
+                    current.y + Math.sin(angleOut + Math.PI/2) * (this.gridSize/2 - 2)
+                );
+                this.ctx.fill();
+            }
+
+            drawTail(tail, prevSeg) {
+                const current = {
+                    x: tail.x * this.gridSize + this.gridSize/2,
+                    y: tail.y * this.gridSize + this.gridSize/2
+                };
+                const prev = {
+                    x: prevSeg.x * this.gridSize + this.gridSize/2,
+                    y: prevSeg.y * this.gridSize + this.gridSize/2
+                };
+                const angle = Math.atan2(current.y - prev.y, current.x - prev.x);
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(
+                    current.x + Math.cos(angle) * this.gridSize/2,
+                    current.y + Math.sin(angle) * this.gridSize/2
+                );
+                this.ctx.lineTo(
+                    current.x + Math.cos(angle + Math.PI/2) * this.gridSize/3,
+                    current.y + Math.sin(angle + Math.PI/2) * this.gridSize/3
+                );
+                this.ctx.lineTo(
+                    current.x + Math.cos(angle - Math.PI/2) * this.gridSize/3,
+                    current.y + Math.sin(angle - Math.PI/2) * this.gridSize/3
+                );
+                this.ctx.closePath();
+                this.ctx.fill();
+            }
+
+            gameOver() {
+                this.isPlaying = false;
+                this.isGameOver = true;
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.fillStyle = 'white';
+                this.ctx.font = '48px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText('游戏结束！', this.canvas.width/2, this.canvas.height/2 - 20);
+                this.ctx.font = '24px Arial';
+                this.ctx.fillText('点击重新开始按钮继续', this.canvas.width/2, this.canvas.height/2 + 30);
+            }
+        }
+
+        // 反馈功能
+        document.addEventListener('DOMContentLoaded', () => {
+            const feedbackToggle = document.querySelector('.feedback-toggle');
+            const feedbackContainer = document.querySelector('.feedback-container');
+            const statusMessage = document.getElementById('statusMessage');
+
+            feedbackToggle.addEventListener('click', () => {
+                feedbackContainer.classList.toggle('active');
+            });
+
+            document.getElementById('feedbackForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                statusMessage.style.display = 'block';
+                setTimeout(() => {
+                    feedbackContainer.classList.remove('active');
+                    statusMessage.style.display = 'none';
+                }, 2000);
+            });
+
+            // 初始化游戏
+            const game = new Game();
+        });
+    </script>
+</body>
+</html>
