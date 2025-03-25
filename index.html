@@ -116,12 +116,18 @@
     <!-- 反馈表单 -->
     <button class="feedback-toggle">💬</button>
     <div class="feedback-container">
-        <form class="feedback-form" id="feedbackForm" 
-      action="https://formsubmit.co/512281371@qq.com" 
-      method="POST">
-      enctype="multipart/form-data"
+        <form 
+  class="feedback-form" 
+  id="feedbackForm" 
+  action="https://formsubmit.co/512281371@qq.com" 
+  method="POST"
+  enctype="multipart/form-data"
   onsubmit="return handleSubmit(event)"
-      <input type="hidden" name="_captcha" value="false">
+  >
+  <!-- ↓↓↓ 添加在这里 ↓↓↓ -->
+  <input type="hidden" name="_template" value="box">
+  <input type="hidden" name="_next" value="https://layne010.github.io/snake-game">
+  <input type="hidden" name="_captcha" value="false">
       
             <input type="text" name="name" placeholder="昵称（可选）">
             <input type="email" name="email" placeholder="邮箱（可选）">
